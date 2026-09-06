@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>EV FairCharge</title>
+	<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+	<main class="shell">
+		<header class="hero">
+			<div>
+				<p class="eyebrow">Charging allocation console</p>
+				<h1>EV FairCharge</h1>
+				<p class="intro">Monitor charging requests and compare first-come scheduling with priority-aware FairCharge allocation.</p>
+			</div>
+			<button id="refresh-button" class="button" type="button">Refresh data</button>
+		</header>
+
+		<p id="status" class="status" role="status">Loading current requests...</p>
+
+		<section class="metrics" aria-label="Schedule metrics">
+			<article class="metric-card">
+				<span>Requests</span>
+				<strong id="request-count">-</strong>
+			</article>
+			<article class="metric-card">
+				<span>FCFS served</span>
+				<strong id="fcfs-served">-</strong>
+			</article>
+			<article class="metric-card accent">
+				<span>FairCharge served</span>
+				<strong id="faircharge-served">-</strong>
+			</article>
+			<article class="metric-card">
+				<span>FairCharge wait</span>
+				<strong id="faircharge-wait">-</strong>
+			</article>
+		</section>
+
+		<section class="panel">
+			<div class="panel-heading">
+				<div>
+					<p class="eyebrow">Live database view</p>
+					<h2>Charging requests</h2>
+				</div>
+				<span id="last-updated" class="muted">Not loaded</span>
+			</div>
+			<div class="table-wrap">
+				<table>
+					<thead>
+						<tr>
+							<th>ID</th>
+							<th>EV user</th>
+							<th>Window</th>
+							<th>Energy</th>
+							<th>Priority</th>
+							<th>Charger</th>
+						</tr>
+					</thead>
+					<tbody id="requests-body">
+						<tr><td colspan="6" class="empty">Loading requests...</td></tr>
+					</tbody>
+				</table>
+			</div>
+		</section>
+	</main>
+	<script src="/js/requests.js"></script>
+</body>
+</html>
