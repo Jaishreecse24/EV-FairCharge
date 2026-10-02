@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Schedule | EV FairCharge</title>
+	<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+	<main class="shell">
+		<header class="hero">
+			<div>
+				<p class="eyebrow">Allocation results</p>
+				<h1>Schedule</h1>
+				<p class="intro">Compare first-come scheduling with priority-aware FairCharge across the same requests.</p>
+			</div>
+			<div class="hero-actions">
+				<nav class="nav-links" aria-label="Main navigation">
+					<a href="/">Requests</a>
+					<a href="/dashboard.html" aria-current="page">Schedule</a>
+					<a href="/admin.html">Human review</a>
+				</nav>
+				<button id="run-schedules" class="button" type="button">Run both schedules</button>
+			</div>
+		</header>
+		<p id="schedule-status" class="status" role="status">Loading saved schedules...</p>
+		<section class="metrics" aria-label="Schedule comparison metrics">
+			<article class="metric-card"><span>Total requests</span><strong id="total-requests">-</strong></article>
+			<article class="metric-card"><span>FCFS served</span><strong id="fcfs-served">-</strong><small id="fcfs-energy" class="metric-detail">- kWh delivered</small></article>
+			<article class="metric-card accent"><span>FairCharge served</span><strong id="faircharge-served">-</strong><small id="faircharge-energy" class="metric-detail">- kWh delivered</small></article>
+			<article class="metric-card"><span>Served difference</span><strong id="served-difference">-</strong></article>
+			<article class="metric-card"><span>Jain fairness index</span><strong id="jain-index" class="metric-pair">FCFS - / FairCharge -</strong></article>
+			<article class="metric-card"><span>Unserved energy</span><strong id="unserved-energy" class="metric-pair">FCFS - / FairCharge -</strong></article>
+			<article class="metric-card"><span>Deadline miss rate</span><strong id="deadline-miss-rate" class="metric-pair">FCFS - / FairCharge -</strong></article>
+			<article class="metric-card"><span>Deadline misses</span><strong id="deadline-miss-count" class="metric-pair">FCFS - / FairCharge -</strong></article>
+			<article class="metric-card"><span>Transformer cap</span><strong id="transformer-cap">-</strong><small class="metric-detail">Site-wide hard limit</small></article>
+			<article class="metric-card"><span>Estimated energy cost</span><strong id="estimated-cost" class="metric-pair">Not configured</strong><small class="metric-detail">Uses operator tariff</small></article>
+			<article class="metric-card"><span>Estimated grid emissions</span><strong id="estimated-emissions" class="metric-pair">Not configured</strong><small class="metric-detail">kg CO2e; uses site factor</small></article>
+		</section>
+		<p class="metric-note">Jain fairness is calculated over priority-group service rates. A deadline miss is an unserved request or a schedule ending after its allowed departure time.</p>
+		<section class="panel">
+			<div class="panel-heading">
+				<div><p class="eyebrow">Request-level results</p><h2>Algorithm comparison</h2></div>
+				<span id="wait-comparison" class="muted">Average wait: -</span>
+			</div>
+			<div class="table-wrap">
+				<table>
+					<thead><tr><th>ID</th><th>EV user</th><th>Priority</th><th>FCFS</th><th>FCFS slot</th><th>FairCharge</th><th>FairCharge slot</th><th>FairCharge reason</th><th>Wait</th><th>Review</th></tr></thead>
+					<tbody id="schedule-body"><tr><td colspan="10" class="empty">Loading schedules...</td></tr></tbody>
+				</table>
+			</div>
+		</section>
+	</main>
+	<script src="/js/dashboard.js"></script>
+</body>
+</html>

@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Human Review | EV FairCharge</title>
+	<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+	<main class="shell">
+		<header class="hero">
+			<div>
+				<p class="eyebrow">Human-in-the-loop decisions</p>
+				<h1>Review queue</h1>
+				<p class="intro">Inspect high-impact FairCharge outcomes and record an auditable review decision.</p>
+			</div>
+			<div class="hero-actions">
+				<nav class="nav-links" aria-label="Main navigation">
+					<a href="/">Requests</a>
+					<a href="/dashboard.html">Schedule</a>
+					<a href="/admin.html" aria-current="page">Human review</a>
+				</nav>
+				<button id="refresh-review" class="button" type="button">Refresh queue</button>
+			</div>
+		</header>
+
+		<p id="review-status" class="status" role="status">Loading review queue...</p>
+		<section class="panel review-panel">
+			<div class="panel-heading"><div><p class="eyebrow">Flagged decisions</p><h2>Requests needing review</h2></div></div>
+			<form id="review-form" class="review-controls">
+				<label>Reviewer name<input name="admin_name" required maxlength="100" autocomplete="name"></label>
+				<label>Reviewer access key<input name="admin_token" type="password" required autocomplete="off"></label>
+				<p id="review-selection" class="muted">Select a decision below to review a request.</p>
+				<input type="hidden" name="request_id">
+				<label>Override priority policy<select name="new_decision" required><option value="">Choose a priority policy</option><option value="emergency">Emergency</option><option value="resident">Resident</option><option value="employee">Employee</option><option value="guest">Guest</option></select></label>
+				<label>Reason<textarea name="reason" required maxlength="500" rows="3"></textarea></label>
+				<button class="button" type="submit">Record review</button>
+			</form>
+			<div class="table-wrap">
+				<table>
+					<thead><tr><th>ID</th><th>EV user</th><th>Priority</th><th>Outcome</th><th>Reason</th><th>Review status</th><th>Action</th></tr></thead>
+					<tbody id="review-body"><tr><td colspan="7" class="empty">Loading review requests...</td></tr></tbody>
+				</table>
+			</div>
+		</section>
+
+		<section class="panel history-panel">
+			<div class="panel-heading"><div><p class="eyebrow">Audit trail</p><h2>Recorded reviews</h2></div></div>
+			<div class="table-wrap">
+				<table>
+					<thead><tr><th>Time</th><th>Request</th><th>Original</th><th>Decision</th><th>Reviewer</th><th>Reason</th></tr></thead>
+					<tbody id="history-body"><tr><td colspan="6" class="empty">No reviews recorded.</td></tr></tbody>
+				</table>
+			</div>
+		</section>
+
+		<section class="panel history-panel">
+			<div class="panel-heading"><div><p class="eyebrow">Site inputs</p><h2>Cost and grid impact</h2></div></div>
+			<form id="site-impact-form" class="review-controls">
+				<label>Electricity cost per kWh<input name="electricity_cost_per_kwh" type="number" min="0" step="0.001" placeholder="Not configured"></label>
+				<label>Grid emissions kg CO2e per kWh<input name="grid_emission_kg_per_kwh" type="number" min="0" step="0.001" placeholder="Not configured"></label>
+				<button class="button" type="submit">Save site factors</button>
+			</form>
+		</section>
+
+		<section class="panel history-panel">
+			<div class="panel-heading"><div><p class="eyebrow">User validation</p><h2>Stakeholder sessions</h2></div></div>
+			<form id="stakeholder-feedback-form" class="review-controls feedback-controls">
+				<label>Stakeholder role<input name="stakeholder_role" required maxlength="100" placeholder="Apartment EV driver"></label>
+				<label>Session date<input name="session_date" type="date" required></label>
+				<label>Task outcome<select name="task_completion" required><option value="completed">Completed</option><option value="partial">Partial</option><option value="failed">Failed</option></select></label>
+				<label>Could they explain the result? (1-5)<select name="explainability_rating" required><option value="5">5</option><option value="4">4</option><option value="3">3</option><option value="2">2</option><option value="1">1</option></select></label>
+				<label>Priority policy acceptance (1-5)<select name="priority_acceptance_rating" required><option value="5">5</option><option value="4">4</option><option value="3">3</option><option value="2">2</option><option value="1">1</option></select></label>
+				<label>Confusion points<textarea name="confusion_points" maxlength="2000" rows="2"></textarea></label>
+				<label>Requested changes<textarea name="requested_changes" maxlength="2000" rows="2"></textarea></label>
+				<button class="button" type="submit">Save session feedback</button>
+			</form>
+			<div class="table-wrap">
+				<table>
+					<thead><tr><th>Date</th><th>Role</th><th>Outcome</th><th>Explainability</th><th>Policy acceptance</th><th>Interviewer</th><th>Notes</th></tr></thead>
+					<tbody id="feedback-body"><tr><td colspan="7" class="empty">Enter reviewer access to see recorded sessions.</td></tr></tbody>
+				</table>
+			</div>
+		</section>
+	</main>
+	<script src="/js/admin.js"></script>
+</body>
+</html>

@@ -79,15 +79,17 @@ def load_requests_from_csv(csv_path=CSV_PATH):
                     ev_user,
                     arrival_time,
                     departure_time,
+                    departure_flexibility_min,
                     energy_required_kwh,
                     priority_policy,
                     charger_id
-                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 request_id,
                 row["ev_user"],
                 row["arrival_time"],
                 row["departure_time"],
+                int(row.get("departure_flexibility_min") or 0),
                 float(row["energy_required_kwh"]),
                 row["priority_policy"],
                 int(row["charger_id"]),

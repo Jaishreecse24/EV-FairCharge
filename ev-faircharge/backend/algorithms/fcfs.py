@@ -118,6 +118,7 @@ def get_all_chargers(conn):
             "location": row["location"],
             "capacity_kw_per_port": row["capacity_kw_per_port"],
             "num_ports": row["num_ports"],
+            "is_available": row["is_available"],
         }
     return chargers
 
@@ -154,6 +155,10 @@ def run_fcfs():
     conn = get_connection()
     chargers = get_all_chargers(conn)
     requests = get_requests_fcfs_order(conn)
+    transformer_capacity_kw = conn.execute(
+        "SELECT transformer_capacity_kw FROM site_limits WHERE limit_id = 1"
+    ).fetchone()["transformer_capacity_kw"]
+    charger_blocks = conn.execute("SELECT * FROM charger_blocks").fetchall()
     conn.close()
 
     # ------------------------------------------------------------------
@@ -167,6 +172,18 @@ def run_fcfs():
     for charger_id, info in chargers.items():
         occupied_slots[charger_id] = [set() for _ in range(info["num_ports"])]
 
+    transformer_load_kw = {}
+    blocked_reasons = {}
+    for block in charger_blocks:
+        charger = chargers[block["charger_id"]]
+        start_slot = minutes_to_slot(time_to_minutes(block["start_time"]))
+        end_slot = math.ceil(time_to_minutes(block["end_time"]) / SLOT_MINUTES)
+        blocked_port_count = min(block["ports_blocked"], charger["num_ports"])
+        for port_index in range(blocked_port_count):
+            for slot in range(start_slot, end_slot):
+                occupied_slots[block["charger_id"]][port_index].add(slot)
+                blocked_reasons.setdefault((block["charger_id"], port_index, slot), set()).add(block["reason"])
+
     results = []
 
     for req in requests:
@@ -174,12 +191,25 @@ def run_fcfs():
         charger_id = req["charger_id"]
         charger = chargers[charger_id]
 
+        if not charger["is_available"]:
+            results.append({
+                "request_id": request_id,
+                "status": "UNSERVED",
+                "assigned_slot_start": None,
+                "assigned_slot_end": None,
+                "wait_time_min": None,
+                "reason": "charger unavailable",
+            })
+            continue
+
         arrival_minutes = time_to_minutes(req["arrival_time"])
         departure_minutes = time_to_minutes(req["departure_time"])
 
         arrival_slot = minutes_to_slot(arrival_minutes)
         departure_slot = minutes_to_slot(departure_minutes)
-        window_slots = departure_slot - arrival_slot
+        flexibility_slots = req["departure_flexibility_min"] // SLOT_MINUTES
+        latest_departure_slot = departure_slot + flexibility_slots
+        window_slots = latest_departure_slot - arrival_slot
 
         duration_slots = calculate_duration_slots(
             req["energy_required_kwh"],
@@ -216,9 +246,11 @@ def run_fcfs():
         # --------------------------------------------------------------
         assigned_port_index = None
         assigned_start_slot = None
+        transformer_conflict = False
+        blocked_event_reasons = set()
 
         num_ports = charger["num_ports"]
-        last_possible_start = departure_slot - duration_slots  # inclusive
+        last_possible_start = latest_departure_slot - duration_slots  # inclusive
 
         for port_index in range(num_ports):
             port_busy_slots = occupied_slots[charger_id][port_index]
@@ -232,22 +264,40 @@ def run_fcfs():
                 )
 
                 if block_is_free:
+                    if any(
+                        transformer_load_kw.get(slot, 0) + charger["capacity_kw_per_port"]
+                        > transformer_capacity_kw + 1e-9
+                        for slot in candidate_block
+                    ):
+                        transformer_conflict = True
+                        continue
                     assigned_port_index = port_index
                     assigned_start_slot = candidate_start
                     break  # earliest block found on this port - stop scanning
+                blocked_event_reasons.update(
+                    reason
+                    for slot in candidate_block
+                    for reason in blocked_reasons.get((charger_id, port_index, slot), set())
+                )
 
             if assigned_start_slot is not None:
                 break  # a port worked - stop trying further ports
 
         if assigned_start_slot is None:
             # No port, at any start time within the window, had a free block.
+            if transformer_conflict:
+                reason = "transformer capacity exceeded"
+            elif blocked_event_reasons:
+                reason = f"charger blocked: {sorted(blocked_event_reasons)[0]}"
+            else:
+                reason = "insufficient capacity"
             results.append({
                 "request_id": request_id,
                 "status": "UNSERVED",
                 "assigned_slot_start": None,
                 "assigned_slot_end": None,
                 "wait_time_min": None,
-                "reason": "insufficient capacity",
+                "reason": reason,
             })
             continue
 
@@ -258,8 +308,10 @@ def run_fcfs():
         assigned_end_slot = assigned_start_slot + duration_slots
         for slot in range(assigned_start_slot, assigned_end_slot):
             occupied_slots[charger_id][assigned_port_index].add(slot)
+            transformer_load_kw[slot] = transformer_load_kw.get(slot, 0) + charger["capacity_kw_per_port"]
 
         wait_time_min = slot_to_minutes(assigned_start_slot) - arrival_minutes
+        flexibility_used_min = max(0, (assigned_end_slot - departure_slot) * SLOT_MINUTES)
 
         results.append({
             "request_id": request_id,
@@ -267,7 +319,7 @@ def run_fcfs():
             "assigned_slot_start": minutes_to_time(slot_to_minutes(assigned_start_slot)),
             "assigned_slot_end": minutes_to_time(slot_to_minutes(assigned_end_slot)),
             "wait_time_min": wait_time_min,
-            "reason": None,
+            "reason": f"served using {flexibility_used_min} min departure flexibility" if flexibility_used_min else None,
         })
 
     return results

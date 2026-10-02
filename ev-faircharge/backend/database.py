@@ -6,8 +6,8 @@ for the EV FairCharge project.
 
 What it does when you run it:
 1. Creates a file called `faircharge.db` (if it doesn't already exist).
-2. Creates all 5 tables required by the project (chargers, requests,
-   schedule_fcfs, schedule_faircharge, overrides).
+2. Creates the tables required by the project, including charger/site
+    constraints, requests, schedules, and override audit records.
 3. Seeds (inserts) the two starting chargers so we have something to
    schedule against later.
 
@@ -32,6 +32,7 @@ import os
 # instead of dealing with messy continuous time.
 # This constant will be imported later by the FCFS and FairCharge algorithms.
 SLOT_MINUTES = 15
+DEFAULT_TRANSFORMER_CAPACITY_KW = 14.0
 
 # The database file will live in the same folder as this script
 # (backend/faircharge.db), regardless of where you run the script from.
@@ -55,6 +56,12 @@ def get_connection():
     return conn
 
 
+def ensure_column(conn, table_name, column_name, declaration):
+    columns = {row["name"] for row in conn.execute(f"PRAGMA table_info({table_name})")}
+    if column_name not in columns:
+        conn.execute(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {declaration}")
+
+
 def create_tables(conn):
     """
     Creates all 5 tables if they do not already exist.
@@ -74,9 +81,11 @@ def create_tables(conn):
             charger_id INTEGER PRIMARY KEY,
             location TEXT NOT NULL,
             capacity_kw_per_port REAL NOT NULL,
-            num_ports INTEGER NOT NULL
+            num_ports INTEGER NOT NULL,
+            is_available INTEGER NOT NULL DEFAULT 1
         )
     """)
+    ensure_column(conn, "chargers", "is_available", "INTEGER NOT NULL DEFAULT 1")
 
     # -----------------------------------------------------------------
     # Table 2: requests
@@ -89,12 +98,53 @@ def create_tables(conn):
             ev_user TEXT NOT NULL,
             arrival_time TEXT NOT NULL,
             departure_time TEXT NOT NULL,
+            departure_flexibility_min INTEGER NOT NULL DEFAULT 0,
             energy_required_kwh REAL NOT NULL,
             priority_policy TEXT NOT NULL,
             charger_id INTEGER NOT NULL,
             FOREIGN KEY (charger_id) REFERENCES chargers (charger_id)
         )
     """)
+    ensure_column(conn, "requests", "departure_flexibility_min", "INTEGER NOT NULL DEFAULT 0")
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS site_limits (
+            limit_id INTEGER PRIMARY KEY CHECK (limit_id = 1),
+            transformer_capacity_kw REAL NOT NULL CHECK (transformer_capacity_kw > 0),
+            electricity_cost_per_kwh REAL,
+            grid_emission_kg_per_kwh REAL
+        )
+    """)
+    ensure_column(conn, "site_limits", "electricity_cost_per_kwh", "REAL")
+    ensure_column(conn, "site_limits", "grid_emission_kg_per_kwh", "REAL")
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS charger_blocks (
+            block_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            charger_id INTEGER NOT NULL,
+            start_time TEXT NOT NULL,
+            end_time TEXT NOT NULL,
+            ports_blocked INTEGER NOT NULL DEFAULT 1,
+            reason TEXT NOT NULL,
+            FOREIGN KEY (charger_id) REFERENCES chargers (charger_id)
+        )
+    """)
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS stakeholder_feedback (
+            feedback_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            stakeholder_role TEXT NOT NULL,
+            session_date TEXT NOT NULL,
+            task_completion TEXT NOT NULL,
+            explainability_rating INTEGER NOT NULL,
+            priority_acceptance_rating INTEGER NOT NULL,
+            recorded_by TEXT NOT NULL DEFAULT '',
+            confusion_points TEXT NOT NULL DEFAULT '',
+            requested_changes TEXT NOT NULL DEFAULT '',
+            created_at TEXT NOT NULL
+        )
+    """)
+    ensure_column(conn, "stakeholder_feedback", "recorded_by", "TEXT NOT NULL DEFAULT ''")
 
     # -----------------------------------------------------------------
     # Table 3: schedule_fcfs
@@ -165,7 +215,7 @@ def create_tables(conn):
     """)
 
     conn.commit()
-    print("All 5 tables created (or already existed).")
+    print("Database tables created (or already existed).")
 
 
 def seed_chargers(conn):
@@ -201,6 +251,14 @@ def seed_chargers(conn):
     print(f"Seeded {len(chargers_to_insert)} chargers.")
 
 
+def seed_site_limits(conn):
+    conn.execute(
+        "INSERT OR IGNORE INTO site_limits (limit_id, transformer_capacity_kw) VALUES (1, ?)",
+        (DEFAULT_TRANSFORMER_CAPACITY_KW,),
+    )
+    conn.commit()
+
+
 def initialize_database():
     """
     Main entry point: opens a connection, creates tables, seeds chargers,
@@ -212,6 +270,7 @@ def initialize_database():
     try:
         create_tables(conn)
         seed_chargers(conn)
+        seed_site_limits(conn)
     finally:
         conn.close()
     print("Database initialization complete.")

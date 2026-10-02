@@ -61,4 +61,24 @@ async function loadDashboard() {
 }
 
 document.getElementById("refresh-button").addEventListener("click", loadDashboard);
+
+document.getElementById("load-csv-button").addEventListener("click", async (event) => {
+	const button = event.currentTarget;
+	button.disabled = true;
+	setStatus("Loading sample requests...");
+	try {
+		const response = await fetch("/api/load-csv", { method: "POST" });
+		const summary = await response.json();
+		if (!response.ok) {
+			throw new Error(summary.error || "Could not load the sample CSV.");
+		}
+		await loadDashboard();
+		setStatus(`Sample CSV loaded: ${summary.inserted_count} added, ${summary.skipped_count} already present.`);
+	} catch (error) {
+		setStatus(error.message, true);
+	} finally {
+		button.disabled = false;
+	}
+});
+
 loadDashboard();

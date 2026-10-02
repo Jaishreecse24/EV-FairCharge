@@ -14,7 +14,17 @@
 				<h1>EV FairCharge</h1>
 				<p class="intro">Monitor charging requests and compare first-come scheduling with priority-aware FairCharge allocation.</p>
 			</div>
-			<button id="refresh-button" class="button" type="button">Refresh data</button>
+			<div class="hero-actions">
+				<nav class="nav-links" aria-label="Main navigation">
+					<a href="/" aria-current="page">Requests</a>
+					<a href="/dashboard.html">Schedule</a>
+					<a href="/admin.html">Human review</a>
+				</nav>
+				<div class="button-row">
+					<button id="load-csv-button" class="button button-secondary" type="button">Load sample CSV</button>
+					<button id="refresh-button" class="button" type="button">Refresh data</button>
+				</div>
+			</div>
 		</header>
 
 		<p id="status" class="status" role="status">Loading current requests...</p>
