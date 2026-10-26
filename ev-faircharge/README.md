@@ -44,7 +44,7 @@ Run the automated checks from the project folder:
 python -m unittest discover -s tests -v
 ```
 
-The measured sample-dataset results, targets, edge cases, limitations, and stakeholder-validation checklist are in [docs/evaluation.md](docs/evaluation.md). The milestone summaries are in [docs/review2-report.md](docs/review2-report.md) and [docs/review3-report.md](docs/review3-report.md). Stakeholder validation is still a real-world task and must not be claimed complete until performed.
+The measured sample-dataset results, targets, edge cases, limitations, and stakeholder-validation checklist are in [docs/evaluation.md](docs/evaluation.md). API/schema documentation and test/error-boundary details are in [docs/testing-and-errors.md](docs/testing-and-errors.md). Stakeholder validation is still a real-world task and must not be claimed complete until performed.
 
 The database is stored in `backend/faircharge.db`. The sample data is in `backend/data/ev_requests.csv`.
 
