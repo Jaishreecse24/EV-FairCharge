@@ -22,16 +22,26 @@ function renderRequests(requests) {
 		return;
 	}
 
-	requestsBody.innerHTML = requests.map((request) => `
-		<tr>
-			<td>${request.request_id}</td>
-			<td>${request.ev_user}</td>
-			<td>${request.arrival_time} - ${request.departure_time}</td>
-			<td>${request.energy_required_kwh} kWh</td>
-			<td class="priority">${request.priority_policy}</td>
-			<td>Charger ${request.charger_id}</td>
-		</tr>
-	`).join("");
+	requestsBody.replaceChildren(...requests.map((request) => {
+		const row = document.createElement("tr");
+		const values = [
+			request.request_id,
+			request.ev_user,
+			`${request.arrival_time} - ${request.departure_time}`,
+			`${request.energy_required_kwh} kWh`,
+			request.priority_policy,
+			`Charger ${request.charger_id}`,
+		];
+		for (const [index, value] of values.entries()) {
+			const cell = document.createElement("td");
+			cell.textContent = value;
+			if (index === 4) {
+				cell.className = "priority";
+			}
+			row.append(cell);
+		}
+		return row;
+	}));
 }
 
 async function loadDashboard() {

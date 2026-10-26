@@ -203,7 +203,7 @@ def run_faircharge():
         arrival_minutes = time_to_minutes(req["arrival_time"])
         departure_minutes = time_to_minutes(req["departure_time"])
 
-        arrival_slot = minutes_to_slot(arrival_minutes)
+        arrival_slot = math.ceil(arrival_minutes / SLOT_MINUTES)
         departure_slot = minutes_to_slot(departure_minutes)
         flexibility_slots = req["departure_flexibility_min"] // SLOT_MINUTES
         latest_departure_slot = departure_slot + flexibility_slots

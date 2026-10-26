@@ -26,11 +26,21 @@ function addCell(row, value) {
 	row.append(cell);
 }
 
+function showTableMessage(body, columnCount, message) {
+	const row = document.createElement("tr");
+	const cell = document.createElement("td");
+	cell.colSpan = columnCount;
+	cell.className = "empty";
+	cell.textContent = message;
+	row.append(cell);
+	body.replaceChildren(row);
+}
+
 function renderReviewQueue(requests, schedules) {
 	const requestsById = new Map(requests.map((request) => [request.request_id, request]));
 	const flagged = schedules.filter((schedule) => schedule.needs_review && !schedule.overridden);
 	if (!flagged.length) {
-		reviewBody.innerHTML = '<tr><td colspan="7" class="empty">No requests are waiting for review.</td></tr>';
+		showTableMessage(reviewBody, 7, "No requests are waiting for review.");
 		return;
 	}
 
@@ -108,8 +118,8 @@ async function loadReviewData() {
 		siteImpactForm.elements.grid_emission_kg_per_kwh.value = site.grid_emission_kg_per_kwh ?? "";
 		const adminToken = reviewForm.elements.admin_token.value;
 		if (!adminToken) {
-			historyBody.innerHTML = '<tr><td colspan="6" class="empty">Enter reviewer access key to view review history.</td></tr>';
-			feedbackBody.innerHTML = '<tr><td colspan="7" class="empty">Enter reviewer access key to view session records.</td></tr>';
+			showTableMessage(historyBody, 6, "Enter reviewer access key to view review history.");
+			showTableMessage(feedbackBody, 7, "Enter reviewer access key to view session records.");
 		} else {
 			const options = { headers: { "X-Admin-Token": adminToken } };
 			const [overrides, feedback] = await Promise.all([
@@ -122,8 +132,8 @@ async function loadReviewData() {
 		setReviewStatus("Review queue is up to date.");
 	} catch (error) {
 		setReviewStatus(error.message, true);
-		historyBody.innerHTML = `<tr><td colspan="6" class="empty">${error.message}</td></tr>`;
-		feedbackBody.innerHTML = `<tr><td colspan="7" class="empty">${error.message}</td></tr>`;
+		showTableMessage(historyBody, 6, error.message);
+		showTableMessage(feedbackBody, 7, error.message);
 	}
 }
 

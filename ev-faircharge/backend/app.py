@@ -1,5 +1,6 @@
 import hmac
 import json
+import math
 import os
 import sqlite3
 from datetime import datetime, timedelta, timezone
@@ -76,6 +77,18 @@ def get_json_body():
 	return body
 
 
+def parse_integer(value):
+	if isinstance(value, bool):
+		raise ValueError("Expected an integer")
+	try:
+		parsed = int(value)
+	except (TypeError, ValueError, OverflowError) as exc:
+		raise ValueError("Expected an integer") from exc
+	if isinstance(value, float) and not value.is_integer():
+		raise ValueError("Expected an integer")
+	return parsed
+
+
 def validate_time(value, field_name):
 	if not isinstance(value, str):
 		raise ValueError(f"{field_name} must be a time in HH:MM format")
@@ -101,15 +114,19 @@ def validate_request_payload(body):
 		raise ValueError(f"Missing required field(s): {', '.join(missing)}")
 
 	try:
-		request_id = int(body["request_id"])
-		charger_id = int(body["charger_id"])
-		departure_flexibility_min = int(body.get("departure_flexibility_min", 0))
+		request_id = parse_integer(body["request_id"])
+		charger_id = parse_integer(body["charger_id"])
+		departure_flexibility_min = parse_integer(body.get("departure_flexibility_min", 0))
+		if isinstance(body["energy_required_kwh"], bool):
+			raise ValueError
 		energy_required_kwh = float(body["energy_required_kwh"])
 	except (TypeError, ValueError) as exc:
 		raise ValueError("request_id, charger_id, and energy_required_kwh must be numeric") from exc
 
 	if request_id <= 0 or charger_id <= 0:
 		raise ValueError("request_id and charger_id must be positive")
+	if not math.isfinite(energy_required_kwh):
+		raise ValueError("energy_required_kwh must be a finite number")
 	if departure_flexibility_min < 0 or departure_flexibility_min > 60 or departure_flexibility_min % 15:
 		raise ValueError("departure_flexibility_min must be 0, 15, 30, 45, or 60")
 	if energy_required_kwh <= 0:
@@ -340,11 +357,16 @@ def update_impact_factors():
 			return authorization_error
 		cost_rate = body.get("electricity_cost_per_kwh")
 		emissions_rate = body.get("grid_emission_kg_per_kwh")
+		if isinstance(cost_rate, bool) or isinstance(emissions_rate, bool):
+			raise ValueError
 		cost_rate = None if cost_rate is None else float(cost_rate)
 		emissions_rate = None if emissions_rate is None else float(emissions_rate)
 	except (TypeError, ValueError):
 		return json_error("Impact factors must be non-negative numbers or null")
-	if (cost_rate is not None and cost_rate < 0) or (emissions_rate is not None and emissions_rate < 0):
+	if (
+		(cost_rate is not None and (not math.isfinite(cost_rate) or cost_rate < 0))
+		or (emissions_rate is not None and (not math.isfinite(emissions_rate) or emissions_rate < 0))
+	):
 		return json_error("Impact factors must be non-negative numbers or null")
 	conn = get_connection()
 	try:
@@ -370,11 +392,13 @@ def update_transformer_limit():
 		authorization_error = review_authorization_error(body.get("admin_token"))
 		if authorization_error:
 			return authorization_error
+		if isinstance(body["transformer_capacity_kw"], bool):
+			raise ValueError
 		capacity_kw = float(body["transformer_capacity_kw"])
 	except (KeyError, TypeError, ValueError):
 		return json_error("A positive transformer_capacity_kw is required")
-	if capacity_kw <= 0:
-		return json_error("transformer_capacity_kw must be greater than zero")
+	if not math.isfinite(capacity_kw) or capacity_kw <= 0:
+		return json_error("transformer_capacity_kw must be a finite number greater than zero")
 	conn = get_connection()
 	try:
 		conn.execute(
@@ -398,7 +422,7 @@ def create_charger_block():
 		charger_id = int(body["charger_id"])
 		start_time = validate_time(body["start_time"], "start_time")
 		end_time = validate_time(body["end_time"], "end_time")
-		ports_blocked = int(body.get("ports_blocked", 1))
+		ports_blocked = parse_integer(body.get("ports_blocked", 1))
 		reason = body["reason"]
 	except (KeyError, TypeError, ValueError) as exc:
 		return json_error(str(exc) or "charger_id, start_time, end_time, and reason are required")
@@ -556,8 +580,8 @@ def stakeholder_feedback():
 		stakeholder_role = body["stakeholder_role"].strip()
 		session_date = body["session_date"]
 		task_completion = body["task_completion"]
-		explainability_rating = int(body["explainability_rating"])
-		priority_acceptance_rating = int(body["priority_acceptance_rating"])
+		explainability_rating = parse_integer(body["explainability_rating"])
+		priority_acceptance_rating = parse_integer(body["priority_acceptance_rating"])
 		recorded_by = body.get("recorded_by", "").strip()
 		confusion_points = body.get("confusion_points", "").strip()
 		requested_changes = body.get("requested_changes", "").strip()
@@ -620,4 +644,4 @@ def handle_bad_request(error):
 
 
 if __name__ == "__main__":
-	app.run(debug=True)
+	app.run(debug=False)

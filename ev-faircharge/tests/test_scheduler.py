@@ -158,6 +158,51 @@ class SchedulerEvaluationTests(unittest.TestCase):
         payload["departure_flexibility_min"] = 10
         self.assertEqual(self.client.post("/api/requests", json=payload).status_code, 400)
 
+        payload["request_id"] = 92
+        payload["departure_flexibility_min"] = 15.5
+        self.assertEqual(self.client.post("/api/requests", json=payload).status_code, 400)
+
+    def test_schedulers_never_assign_before_a_non_aligned_arrival(self):
+        conn = database.get_connection()
+        conn.execute(
+            "INSERT INTO requests (request_id, ev_user, arrival_time, departure_time, "
+            "energy_required_kwh, priority_policy, charger_id) VALUES "
+            "(90, 'Late_Arrival', '16:10', '16:30', 1.75, 'guest', 1)"
+        )
+        conn.commit()
+        conn.close()
+
+        for results in (run_fcfs(), run_faircharge()):
+            request = next(row for row in results if row["request_id"] == 90)
+            self.assertEqual(request["status"], "SERVED")
+            self.assertEqual(request["assigned_slot_start"], "16:15")
+            self.assertEqual(request["assigned_slot_end"], "16:30")
+
+    def test_api_rejects_non_finite_numeric_values(self):
+        request_payload = {
+            "request_id": 90,
+            "ev_user": "Finite_User",
+            "arrival_time": "16:00",
+            "departure_time": "17:00",
+            "energy_required_kwh": float("inf"),
+            "priority_policy": "guest",
+            "charger_id": 1,
+        }
+        self.assertEqual(self.client.post("/api/requests", json=request_payload).status_code, 400)
+
+        impact_response = self.client.post("/api/site/impact-factors", json={
+            "electricity_cost_per_kwh": float("nan"),
+            "grid_emission_kg_per_kwh": 0.4,
+            "admin_token": "test-review-key",
+        })
+        self.assertEqual(impact_response.status_code, 400)
+
+        transformer_response = self.client.post("/api/site/transformer-limit", json={
+            "transformer_capacity_kw": float("inf"),
+            "admin_token": "test-review-key",
+        })
+        self.assertEqual(transformer_response.status_code, 400)
+
     def test_transformer_limit_endpoint_requires_auth_and_recomputes(self):
         payload = {
             "transformer_capacity_kw": 10,
